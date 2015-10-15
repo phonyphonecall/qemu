@@ -39,6 +39,7 @@ struct SECommandUpdateVRAM {
 
 union SECommand {
   enum SpriteEngineCommandType type;
+  struct SECommandUpdateOAM update_oam;
   struct SECommandSetPriorityControl set_priority_control;
   struct SECommandUpdateCRAM update_cram;
   struct SECommandUpdateVRAM update_vram;
