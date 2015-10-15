@@ -107,6 +107,11 @@ sprite_engine_write(void *opaque, hwaddr addr,
     } else if (addr >= SE_VRAM_MIN && addr <= SE_VRAM_MAX) {
         // VRAM write
         dprintf(log, "sprite_engine_write (VRAM): at addr %x  val %d\n", addr, val64);
+        struct SECommandUpdateVRAM cmd;
+        int oamRegIndex = addr >> 2;
+        uint32_t val = (uint32_t) val64;
+        fillUpdateVRAM(oamRegIndex, val, &cmd);
+        debugUpdateVRAM(log, &cmd);
     } else {
         // Out of range. Ignore it?
         dprintf(log, "sprite_engine_write (OUT_OF_RANGE): at addr %x  val %d\n", addr, val64);

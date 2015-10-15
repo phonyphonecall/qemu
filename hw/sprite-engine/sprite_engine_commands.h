@@ -113,8 +113,8 @@ void debugPriorityControl(int fd, struct SECommandSetPriorityControl *cmd) {
 }
 
 void fillUpdateCRAM(uint8_t cram_index, uint32_t val, struct SECommandUpdateCRAM *cmd) {
-    memset(cmd, 0, sizeof(struct SECommandSetPriorityControl));
-    cmd->type = SET_PRIORITY_CTRL;
+    memset(cmd, 0, sizeof(struct SECommandUpdateCRAM));
+    cmd->type = UPDATE_CRAM;
     cmd->cram_index = cram_index;
     cmd->palette_index = ((val & 0xF0000000) >> 28);
     cmd->user = ((val & 0x0F000000) >> 24);
@@ -137,7 +137,31 @@ void debugUpdateCRAM(int fd, struct SECommandUpdateCRAM *cmd) {
                     cmd->user,
                     cmd->red,
                     cmd->green,
-                    cmd->blue 
+                    cmd->blue
            );
 }
+
+void fillUpdateVRAM(uint8_t cram_index, uint32_t val, struct SECommandUpdateVRAM *cmd) {
+    memset(cmd, 0, sizeof(struct SECommandUpdateVRAM));
+    cmd->type = UPDATE_VRAM;
+    cmd->chunk = ((val & 0xFF800000) >> 23);
+    cmd->pixel_y = ((val & 0x007E0000) >> 17);
+    cmd->pixel_x = ((val & 0x0001F800) >> 11);
+    cmd->p_data = (val & 0x0000000F);
+}
+
+void debugUpdateVRAM(int fd, struct SECommandUpdateVRAM *cmd) {
+    dprintf(fd, "SECommandUpdateVRAM {\n"
+                    "\tchunk:\t\t%d\n"
+                    "\tpixel_y:\t%d\n"
+                    "\tpixel_x:\t%d\n"
+                    "\tp_data:\t\t%d\n"
+                    "}\n",
+                    cmd->chunk,
+                    cmd->pixel_y,
+                    cmd->pixel_x,
+                    cmd->p_data
+           );
+}
+
 #endif // SPRITE_ENGINE_COMMANDS_H
