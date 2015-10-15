@@ -76,15 +76,19 @@ sprite_engine_write(void *opaque, hwaddr addr,
 
     if (addr >= SE_OAM_MIN && addr <= SE_OAM_MAX) {
         // OAM write
+        dprintf(log, "sprite_engine_write (OAM): at addr %x  val %d\n", addr, val64);
         struct SECommandUpdateOAM cmd;
         int oamRegIndex = addr >> 2;
         uint32_t val = (uint32_t) val64;
-        dprintf(log, "sprite_engine_write (OAM): at addr %x  val %d\n", addr, val64);
         fillUpdateOAM(oamRegIndex, val, &cmd);
         debugUpdateOAM(log, &cmd);
     } else if (addr == SE_PRIORITY_CTL) {
         // Priority write
         dprintf(log, "sprite_engine_write (PRIORITY): at addr %x  val %d\n", addr, val64);
+        struct SECommandSetPriorityControl cmd;
+        uint8_t val = (uint8_t) val64;
+        fillPriorityControl(val, &cmd);
+        debugPriorityControl(log, &cmd);
     } else if (addr >= SE_INST_MIN && addr <= SE_INST_MAX) {
         // Instance write
         dprintf(log, "sprite_engine_write (INSTANCE): at addr %x  val %d\n", addr, val64);

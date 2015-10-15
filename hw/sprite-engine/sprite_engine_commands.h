@@ -98,7 +98,19 @@ void debugUpdateOAM(int fd, struct SECommandUpdateOAM *cmd) {
              );
 }
 
+void fillPriorityControl(uint8_t val, struct SECommandSetPriorityControl *cmd) {
+    memset(cmd, 0, sizeof(struct SECommandSetPriorityControl));
+    cmd->type = SET_PRIORITY_CTRL;
+    cmd->iprctl = ((val & 0x01) != 0) ? true : false;
+}
 
+void debugPriorityControl(int fd, struct SECommandSetPriorityControl *cmd) {
+    dprintf(fd, "SECommandSetPriorityControl {\n"
+                    "\tiprctl:\t%d\n"
+                    "}\n",
+                    cmd->iprctl
+           );
+}
 // TODO: other 'to' transformers
 //
 // TODO: tostrings
