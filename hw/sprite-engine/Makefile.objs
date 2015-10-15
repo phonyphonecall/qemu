@@ -1,0 +1,2 @@
+common-obj-$(CONFIG_XILINX) += sprite_engine.o
+

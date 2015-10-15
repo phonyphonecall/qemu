@@ -54,6 +54,7 @@
 #define UART16550_BASEADDR 0x83e00000
 #define AXIENET_BASEADDR 0x82780000
 #define AXIDMA_BASEADDR 0x84600000
+#define SPRITE_ENGINE_BASEADDR 0xA0000000
 
 #define AXIDMA_IRQ1         0
 #define AXIDMA_IRQ0         1
@@ -130,6 +131,16 @@ sprite_engine_init(MachineState *machine)
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
+
+    /* sprite engine init */
+    dev = qdev_create(NULL, "sprite-engine");
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SPRITE_ENGINE_BASEADDR);
+
+    int log = open("/tmp/se-init-qemu.log", O_CREAT | O_RDWR, 0777);
+    dprintf(log, "hello from sprite_engine_init!\n");
+    close(log);
+
 
     /* axi ethernet and dma initialization. */
     qemu_check_nic_model(&nd_table[0], "xlnx.axi-ethernet");
