@@ -111,7 +111,33 @@ void debugPriorityControl(int fd, struct SECommandSetPriorityControl *cmd) {
                     cmd->iprctl
            );
 }
-// TODO: other 'to' transformers
-//
-// TODO: tostrings
+
+void fillUpdateCRAM(uint8_t cram_index, uint32_t val, struct SECommandUpdateCRAM *cmd) {
+    memset(cmd, 0, sizeof(struct SECommandSetPriorityControl));
+    cmd->type = SET_PRIORITY_CTRL;
+    cmd->cram_index = cram_index;
+    cmd->palette_index = ((val & 0xF0000000) >> 28);
+    cmd->user = ((val & 0x0F000000) >> 24);
+    cmd->red = ((val & 0x00FF0000) >> 16);
+    cmd->green = ((val & 0x0000FF00) >> 8);
+    cmd->blue = (val & 0x000000FF);
+}
+
+void debugUpdateCRAM(int fd, struct SECommandUpdateCRAM *cmd) {
+    dprintf(fd, "SECommandUpdateCRAM {\n"
+                    "\tcram_index:\t%d\n"
+                    "\tpalette_index:\t%d\n"
+                    "\tuser:\t\t%d\n"
+                    "\tred:\t\t%d\n"
+                    "\tgreen:\t\t%d\n"
+                    "\tblue:\t\t%d\n"
+                    "}\n",
+                    cmd->cram_index,
+                    cmd->palette_index,
+                    cmd->user,
+                    cmd->red,
+                    cmd->green,
+                    cmd->blue 
+           );
+}
 #endif // SPRITE_ENGINE_COMMANDS_H

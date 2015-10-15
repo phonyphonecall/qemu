@@ -92,9 +92,18 @@ sprite_engine_write(void *opaque, hwaddr addr,
     } else if (addr >= SE_INST_MIN && addr <= SE_INST_MAX) {
         // Instance write
         dprintf(log, "sprite_engine_write (INSTANCE): at addr %x  val %d\n", addr, val64);
+        struct SECommandUpdateOAM cmd;
+        int oamRegIndex = addr >> 2;
+        fillUpdateInstOAM(oamRegIndex, val64, &cmd);
+        debugUpdateOAM(log, &cmd);
     } else if (addr >= SE_CRAM_MIN && addr <= SE_CRAM_MAX) {
         // CRAM write
         dprintf(log, "sprite_engine_write (CRAM): at addr %x  val %d\n", addr, val64);
+        struct SECommandUpdateCRAM cmd;
+        int oamRegIndex = addr >> 2;
+        uint32_t val = (uint32_t) val64;
+        fillUpdateCRAM(oamRegIndex, val, &cmd);
+        debugUpdateCRAM(log, &cmd);
     } else if (addr >= SE_VRAM_MIN && addr <= SE_VRAM_MAX) {
         // VRAM write
         dprintf(log, "sprite_engine_write (VRAM): at addr %x  val %d\n", addr, val64);
