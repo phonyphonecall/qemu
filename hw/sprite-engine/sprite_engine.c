@@ -27,9 +27,24 @@
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 
+#include "hw/sprite-engine/sprite_engine_commands.h"
+
 #define TYPE_SPRITE_ENGINE "sprite-engine"
 #define SPRITE_ENGINE(obj) \
     OBJECT_CHECK(struct engineblock, (obj), TYPE_SPRITE_ENGINE)
+
+// MIN and MAX are defined inclusive
+#define SE_REGION_MIN   0x00000000
+#define SE_OAM_MIN      (SE_REGION_MIN)
+#define SE_OAM_MAX      ((SE_REGION_MIN) + 0x1EC)
+#define SE_PRIORITY_CTL ((SE_REGION_MIN) + 0x1FC)
+#define SE_INST_MIN     ((SE_REGION_MIN) + 0x200)
+#define SE_INST_MAX     ((SE_REGION_MIN) + 0x3FC)
+#define SE_CRAM_MIN     ((SE_REGION_MIN) + 0x400)
+#define SE_CRAM_MAX     ((SE_REGION_MIN) + 0x4FC)
+#define SE_VRAM_MIN     ((SE_REGION_MIN) + 0x800)
+#define SE_VRAM_MAX     ((SE_REGION_MIN) + 0x803)
+#define SE_REGION_MAX   SE_VRAM_MAX
 
 struct engineblock
 {
@@ -44,9 +59,6 @@ sprite_engine_read(void *opaque, hwaddr addr, unsigned int size)
     struct engineblock *engine = opaque;
     uint32_t val = 0;
 
-    qemu_log("hello from sprite_engine_read!\n");
-    printf("hello from sprite_engine_read!\n");
-
     addr >>= 2;
     return val;
 }
@@ -55,16 +67,34 @@ static void
 sprite_engine_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
+    union SECommand cmd;
     struct engineblock *engine = opaque;
-    // Write will always be a 4 byte val
-    uint32_t value = val64;
 
     int log = open("/tmp/se-write-qemu.log", O_CREAT | O_RDWR | O_APPEND, 0777);
-    dprintf(log, "sprite_engine_write at addr %x  val %d\n", addr, value);
-    close(log);
 
-    // ??
-    addr >>= 2;
+    memset(&cmd, 0, sizeof(union SECommand));
+
+    if (addr >= SE_OAM_MIN && addr <= SE_OAM_MAX) {
+        // OAM write
+        dprintf(log, "sprite_engine_write (OAM): at addr %x  val %d\n", addr, val64);
+    } else if (addr == SE_PRIORITY_CTL) {
+        // Priority write
+        dprintf(log, "sprite_engine_write (PRIORITY): at addr %x  val %d\n", addr, val64);
+    } else if (addr >= SE_INST_MIN && addr <= SE_INST_MAX) {
+        // Instance write
+        dprintf(log, "sprite_engine_write (INSTANCE): at addr %x  val %d\n", addr, val64);
+    } else if (addr >= SE_CRAM_MIN && addr <= SE_CRAM_MAX) {
+        // CRAM write
+        dprintf(log, "sprite_engine_write (CRAM): at addr %x  val %d\n", addr, val64);
+    } else if (addr >= SE_VRAM_MIN && addr <= SE_VRAM_MAX) {
+        // VRAM write
+        dprintf(log, "sprite_engine_write (VRAM): at addr %x  val %d\n", addr, val64);
+    } else {
+        // Out of range. Ignore it?
+        dprintf(log, "sprite_engine_write (OUT_OF_RANGE): at addr %x  val %d\n", addr, val64);
+    }
+
+    close(log);
 }
 
 static const MemoryRegionOps sprite_engine_ops = {
@@ -118,3 +148,4 @@ static void sprite_engine_register_types(void)
 }
 
 type_init(sprite_engine_register_types)
+
