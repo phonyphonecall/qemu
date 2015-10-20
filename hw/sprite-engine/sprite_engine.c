@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include<arpa/inet.h>
+#include <sys/socket.h>
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
 #include "qemu/log.h"
@@ -51,16 +53,14 @@ struct engineblock
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
+    int sockd;
 };
 
 static uint64_t
 sprite_engine_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    struct engineblock *engine = opaque;
-    uint32_t val = 0;
-
-    addr >>= 2;
-    return val;
+    // TODO: write this if you want it
+    return 0;
 }
 
 static void
@@ -76,42 +76,48 @@ sprite_engine_write(void *opaque, hwaddr addr,
 
     if (addr >= SE_OAM_MIN && addr <= SE_OAM_MAX) {
         // OAM write
-        dprintf(log, "sprite_engine_write (OAM): at addr %x  val %d\n", addr, val64);
+        dprintf(log, "sprite_engine_write (OAM): at addr %llx  val %llu\n", addr, val64);
         int oamRegIndex = addr >> 2;
         uint32_t val = (uint32_t) val64;
         fillUpdateOAM(oamRegIndex, val, &cmd.update_oam);
-        debugUpdateOAM(log, &cmd);
+        debugUpdateOAM(log, &cmd.update_oam);
     } else if (addr == SE_PRIORITY_CTL) {
         // Priority write
-        dprintf(log, "sprite_engine_write (PRIORITY): at addr %x  val %d\n", addr, val64);
+        dprintf(log, "sprite_engine_write (PRIORITY): at addr %llx  val %llu\n", addr, val64);
         uint8_t val = (uint8_t) val64;
         fillPriorityControl(val, &cmd.set_priority_control);
-        debugPriorityControl(log, &cmd);
+        debugPriorityControl(log, &cmd.set_priority_control);
     } else if (addr >= SE_INST_MIN && addr <= SE_INST_MAX) {
         // Instance write
-        dprintf(log, "sprite_engine_write (INSTANCE): at addr %x  val %d\n", addr, val64);
+        dprintf(log, "sprite_engine_write (INSTANCE): at addr %llx  val %llu\n", addr, val64);
         int oamRegIndex = addr >> 2;
         fillUpdateInstOAM(oamRegIndex, val64, &cmd.update_oam);
-        debugUpdateOAM(log, &cmd);
+        debugUpdateOAM(log, &cmd.update_oam);
     } else if (addr >= SE_CRAM_MIN && addr <= SE_CRAM_MAX) {
         // CRAM write
-        dprintf(log, "sprite_engine_write (CRAM): at addr %x  val %d\n", addr, val64);
+        dprintf(log, "sprite_engine_write (CRAM): at addr %llx  val %llu\n", addr, val64);
         int oamRegIndex = addr >> 2;
         uint32_t val = (uint32_t) val64;
         fillUpdateCRAM(oamRegIndex, val, &cmd.update_cram);
-        debugUpdateCRAM(log, &cmd);
+        debugUpdateCRAM(log, &cmd.update_cram);
     } else if (addr >= SE_VRAM_MIN && addr <= SE_VRAM_MAX) {
         // VRAM write
-        dprintf(log, "sprite_engine_write (VRAM): at addr %x  val %d\n", addr, val64);
+        dprintf(log, "sprite_engine_write (VRAM): at addr %llx  val %llu\n", addr, val64);
         int oamRegIndex = addr >> 2;
         uint32_t val = (uint32_t) val64;
-        fillUpdateVRAM(oamRegIndex, val, &cmd);
+        fillUpdateVRAM(oamRegIndex, val, &cmd.update_vram);
         debugUpdateVRAM(log, &cmd.update_vram);
     } else {
         // Out of range. Ignore it?
-        dprintf(log, "sprite_engine_write (OUT_OF_RANGE): at addr %x  val %d\n", addr, val64);
+        dprintf(log, "sprite_engine_write (OUT_OF_RANGE): at addr %llx  val %llu\n", addr, val64);
+        close(log);
+        return;
     }
-
+    size_t cmd_size = sizeof(union SECommand);
+    ssize_t rv = send(engine->sockd, &cmd, cmd_size, 0);
+    if (rv != cmd_size) {
+        dprintf(log, "sprite_engine_write send failed expected: %zd  observed: %zd\n", cmd_size, rv);
+    }
     close(log);
 }
 
@@ -128,7 +134,6 @@ static const MemoryRegionOps sprite_engine_ops = {
 static void sprite_engine_realize(DeviceState *dev, Error **errp)
 {
     struct engineblock *engine = SPRITE_ENGINE(dev);
-    unsigned int i;
 
     memory_region_init_io(&engine->mmio, OBJECT(engine), &sprite_engine_ops, engine, "sprite-engine", 0x00002000);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &engine->mmio);
@@ -136,8 +141,24 @@ static void sprite_engine_realize(DeviceState *dev, Error **errp)
 
 static void sprite_engine_init(Object *obj)
 {
+    struct sockaddr_in server;
     struct engineblock *engine = SPRITE_ENGINE(obj);
-    // Do init things here
+
+    int sockd = socket(PF_LOCAL, SOCK_STREAM, 0);
+    if (sockd == -1) {
+        // Log failure to create socket
+        // exit
+    }
+    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server.sin_family = PF_LOCAL;
+    server.sin_port = htons( 1985 );
+    // Or just pick a port...
+    int rv = connect(sockd, (struct sockaddr*) &server, sizeof(struct sockaddr_in));
+    if (rv != 0) {
+        // Log failure to connect to server
+        // exit
+    }
+    engine->sockd = sockd;
 }
 
 static Property sprite_engine_properties[] = {

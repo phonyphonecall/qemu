@@ -45,6 +45,7 @@ union SECommand {
   struct SECommandUpdateVRAM update_vram;
 };
 
+void fillUpdateOAM(uint8_t oam_index, uint32_t val, struct SECommandUpdateOAM *cmd);
 void fillUpdateOAM(uint8_t oam_index, uint32_t val, struct SECommandUpdateOAM *cmd) {
     memset(cmd, 0, sizeof(struct SECommandUpdateOAM));
     cmd->type = UPDATE_OAM;
@@ -58,6 +59,7 @@ void fillUpdateOAM(uint8_t oam_index, uint32_t val, struct SECommandUpdateOAM *c
     // other fields 0'd by memset
 }
 
+void fillUpdateInstOAM(uint8_t oam_index, uint64_t val, struct SECommandUpdateOAM *cmd);
 void fillUpdateInstOAM(uint8_t oam_index, uint64_t val, struct SECommandUpdateOAM *cmd) {
     memset(cmd, 0, sizeof(struct SECommandUpdateOAM));
     cmd->type = UPDATE_OAM;
@@ -67,12 +69,13 @@ void fillUpdateInstOAM(uint8_t oam_index, uint64_t val, struct SECommandUpdateOA
     cmd->flip_x = ((val & 0x0020000000000000) != 0) ? true : false;
     cmd->flip_y = ((val & 0x0010000000000000) != 0) ? true : false;
     cmd->x_offset = (uint16_t) ((val & 0x0007FE0000000000) >> 42);
-    cmd->y_offset = (uint16_t) ((val & 0x000001FF00000000)) >> 32;
+    cmd->y_offset = (uint16_t) ((val & 0x000001FF00000000) >> 32);
     cmd->sprite_size = (uint8_t) ((val & 0x0000000000000060)) >> 5;
     cmd->sprite = (uint8_t) ((val & 0x000000000000001E)) >> 1;
     cmd->transpose = ((val & 0x0000000000000001) != 0) ? true : false;
 }
 
+void debugUpdateOAM(int fd, struct SECommandUpdateOAM *cmd);
 void debugUpdateOAM(int fd, struct SECommandUpdateOAM *cmd) {
     dprintf(fd, "SECommandUpdateOAM {\n"
                     "\toam_index:\t%d\n"
@@ -99,12 +102,14 @@ void debugUpdateOAM(int fd, struct SECommandUpdateOAM *cmd) {
              );
 }
 
+void fillPriorityControl(uint8_t val, struct SECommandSetPriorityControl *cmd);
 void fillPriorityControl(uint8_t val, struct SECommandSetPriorityControl *cmd) {
     memset(cmd, 0, sizeof(struct SECommandSetPriorityControl));
     cmd->type = SET_PRIORITY_CTRL;
     cmd->iprctl = ((val & 0x01) != 0) ? true : false;
 }
 
+void debugPriorityControl(int fd, struct SECommandSetPriorityControl *cmd);
 void debugPriorityControl(int fd, struct SECommandSetPriorityControl *cmd) {
     dprintf(fd, "SECommandSetPriorityControl {\n"
                     "\tiprctl:\t%d\n"
@@ -113,6 +118,7 @@ void debugPriorityControl(int fd, struct SECommandSetPriorityControl *cmd) {
            );
 }
 
+void fillUpdateCRAM(uint8_t cram_index, uint32_t val, struct SECommandUpdateCRAM *cmd);
 void fillUpdateCRAM(uint8_t cram_index, uint32_t val, struct SECommandUpdateCRAM *cmd) {
     memset(cmd, 0, sizeof(struct SECommandUpdateCRAM));
     cmd->type = UPDATE_CRAM;
@@ -124,6 +130,7 @@ void fillUpdateCRAM(uint8_t cram_index, uint32_t val, struct SECommandUpdateCRAM
     cmd->blue = (val & 0x000000FF);
 }
 
+void debugUpdateCRAM(int fd, struct SECommandUpdateCRAM *cmd);
 void debugUpdateCRAM(int fd, struct SECommandUpdateCRAM *cmd) {
     dprintf(fd, "SECommandUpdateCRAM {\n"
                     "\tcram_index:\t%d\n"
@@ -142,6 +149,7 @@ void debugUpdateCRAM(int fd, struct SECommandUpdateCRAM *cmd) {
            );
 }
 
+void fillUpdateVRAM(uint8_t cram_index, uint32_t val, struct SECommandUpdateVRAM *cmd);
 void fillUpdateVRAM(uint8_t cram_index, uint32_t val, struct SECommandUpdateVRAM *cmd) {
     memset(cmd, 0, sizeof(struct SECommandUpdateVRAM));
     cmd->type = UPDATE_VRAM;
@@ -151,6 +159,8 @@ void fillUpdateVRAM(uint8_t cram_index, uint32_t val, struct SECommandUpdateVRAM
     cmd->p_data = (val & 0x0000000F);
 }
 
+
+void debugUpdateVRAM(int fd, struct SECommandUpdateVRAM *cmd);
 void debugUpdateVRAM(int fd, struct SECommandUpdateVRAM *cmd) {
     dprintf(fd, "SECommandUpdateVRAM {\n"
                     "\tchunk:\t\t%d\n"
