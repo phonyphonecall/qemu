@@ -144,21 +144,24 @@ static void sprite_engine_init(Object *obj)
     struct sockaddr_in server;
     struct engineblock *engine = SPRITE_ENGINE(obj);
 
-    int sockd = socket(PF_LOCAL, SOCK_STREAM, 0);
+    int log = open("/tmp/se-init.log", O_CREAT | O_RDWR | O_APPEND, 0777);
+
+    int sockd = socket(PF_INET, SOCK_STREAM, 0);
     if (sockd == -1) {
-        // Log failure to create socket
-        // exit
+        dprintf(log, "sprite_engine_init: failed to create socket");
+        return;
     }
+
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server.sin_family = PF_LOCAL;
+    server.sin_family = PF_INET;
     server.sin_port = htons( 1985 );
-    // Or just pick a port...
-    int rv = connect(sockd, (struct sockaddr*) &server, sizeof(struct sockaddr_in));
+    int rv = connect(sockd, (struct sockaddr*) &server, sizeof(struct sockaddr));
     if (rv != 0) {
-        // Log failure to connect to server
-        // exit
+        dprintf(log, "sprite_engine_init: failed to connect\n");
+        return;
     }
     engine->sockd = sockd;
+    close(log);
 }
 
 static Property sprite_engine_properties[] = {
