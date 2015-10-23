@@ -124,13 +124,19 @@ sprite_engine_init(MachineState *machine)
                    irq[UART16550_IRQ], 115200, serial_hds[0],
                    DEVICE_LITTLE_ENDIAN);
 
-    /* 2 timers at irq 2 @ 100 Mhz.  */
-    dev = qdev_create(NULL, "xlnx.xps-timer");
-    qdev_prop_set_uint32(dev, "one-timer-only", 0);
+    // Create the vsync timer, and connect it to TIMER_IRQ
+    dev = qdev_create(NULL, "sprite-engine.vsync");
     qdev_prop_set_uint32(dev, "clock-frequency", 100 * 1000000);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
+
+    // /* 2 timers at irq 2 @ 100 Mhz.  */
+    // dev = qdev_create(NULL, "xlnx.xps-timer");
+    // qdev_prop_set_uint32(dev, "one-timer-only", 0);
+    // qdev_prop_set_uint32(dev, "clock-frequency", 100 * 1000000);
+    // qdev_init_nofail(dev);
+    // sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
+    // sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
     /* sprite engine init */
     dev = qdev_create(NULL, "sprite-engine");
