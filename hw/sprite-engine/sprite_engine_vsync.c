@@ -83,8 +83,8 @@ static void timer_enable(struct vsync_timer *xt)
 
     ptimer_set_limit(xt->ptimer, count, 1);
 
-    // 1 == periodic (not oneshot)
-    ptimer_run(xt->ptimer, 1);
+    // 0 == periodic (not oneshot)
+    ptimer_run(xt->ptimer, 0);
 }
 
 static void timer_hit(void *opaque)
