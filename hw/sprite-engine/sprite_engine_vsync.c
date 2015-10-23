@@ -78,7 +78,7 @@ static void timer_update_irq(struct timerblock *t)
 static void timer_enable(struct vsync_timer *xt)
 {
     // 1000000000 == 60hz
-    uint64_t count = 1000000000;
+    uint64_t count = 1000;
     ptimer_stop(xt->ptimer);
 
     ptimer_set_limit(xt->ptimer, count, 1);
@@ -91,10 +91,6 @@ static void timer_hit(void *opaque)
 {
     struct vsync_timer *xt = opaque;
     struct timerblock *t = xt->parent;
-
-    int log = open("/tmp/se-vsync.log", O_CREAT | O_RDWR | O_APPEND, 0777);
-    dprintf(log, "timer hit\n");
-    close(log);
 
     timer_update_irq(t);
 }
@@ -122,7 +118,7 @@ static void se_vsync_init(Object *obj)
 
 static Property se_vsync_properties[] = {
     DEFINE_PROP_UINT32("clock-frequency", struct timerblock, freq_hz,
-                                                                62 * 1000000),
+                                                                1000000),
     DEFINE_PROP_END_OF_LIST(),
 };
 

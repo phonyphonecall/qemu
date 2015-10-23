@@ -126,7 +126,7 @@ sprite_engine_init(MachineState *machine)
 
     // Create the vsync timer, and connect it to TIMER_IRQ
     dev = qdev_create(NULL, "sprite-engine.vsync");
-    qdev_prop_set_uint32(dev, "clock-frequency", 100 * 1000000);
+    qdev_prop_set_uint32(dev, "clock-frequency", 1000000);
     qdev_init_nofail(dev);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
