@@ -36,9 +36,6 @@
 // MIN and MAX are defined inclusive
 #define CONTROL_REGION   0x00000000
 
-QemuMutex reg_lock;
-uint32_t reg;
-
 struct control
 {
     SysBusDevice parent_obj;
@@ -46,17 +43,21 @@ struct control
     MemoryRegion mmio;
     uint32_t port;
     QemuThread server_thread;
+    QemuMutex reg_lock;
+    uint32_t reg;
 };
 
 static uint64_t
 sprite_engine_controller_read(void *opaque, hwaddr addr, unsigned int size)
 {
+    struct control* c = (struct control*) opaque;
+
     assert(addr == CONTROL_REGION);
     assert(size == 4);
     uint32_t val;
-    qemu_mutex_lock(&reg_lock);
-    val = reg;
-    qemu_mutex_unlock(&reg_lock);
+    qemu_mutex_lock(&c->reg_lock);
+    val = c->reg;
+    qemu_mutex_unlock(&c->reg_lock);
 
     return val;
 }
@@ -81,22 +82,17 @@ static const MemoryRegionOps sprite_engine_controller_ops = {
     }
 };
 
-static void sprite_engine_controller_realize(DeviceState *dev, Error **errp)
-{
-    struct control *c = SPRITE_ENGINE_CONTROLLER(dev);
-
-    memory_region_init_io(&c->mmio, OBJECT(c), &sprite_engine_controller_ops, c, "sprite-engine-control", 0x01);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &c->mmio);
-}
-
 static void sprite_engine_controller_svr_main(void* args) {
     int rv;
     int sockd;
     int connd;
     struct sockaddr_in server;
     struct sockaddr_in client;
-    int log = open("/tmp/se-controller-svr.log", O_CREAT | O_RDWR | O_APPEND, 0777);
-    int port = *((int*) args);
+    int log = open("/tmp/se-controller-svr-main.log", O_CREAT | O_RDWR | O_APPEND, 0777);
+    struct control* c = (struct control*) ((struct control*) args);
+
+
+    dprintf(log, "sprite_engine_controller_svr_main: binding to port %d\n", c->port);
 
     sockd = socket(PF_INET, SOCK_STREAM, 0);
     if (sockd == -1) {
@@ -107,7 +103,7 @@ static void sprite_engine_controller_svr_main(void* args) {
     memset(&server, 0, sizeof(struct sockaddr_in));
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
     server.sin_family = PF_INET;
-    server.sin_port = htons(port);
+    server.sin_port = htons(c->port);
     rv = bind(sockd, (struct sockaddr *) &server, sizeof(server));
     if (rv == -1) {
         dprintf(log, "sprite_engine_controller_svr_main: failed to bind to port");
@@ -123,34 +119,49 @@ static void sprite_engine_controller_svr_main(void* args) {
 
     int client_length = sizeof(client);
     connd = accept(sockd, (struct sockaddr*) &client, (socklen_t *) &client_length);
+    if (connd == -1) {
+        dprintf(log, "sprite_engine_controller_svr_main: failed to accept");
+        return;
+    }
 
     // continually read new reg values, and store them
     int reg_update;
     while (1) {
         ssize_t read_size = read(connd, &reg_update, sizeof(int)); 
         if (read_size != sizeof(int)) {
-            dprintf(log, "sprite_engine_controller_svr_main: weird read size");
+            dprintf(log, "sprite_engine_controller_svr_main: weird read size of %zd", read_size);
         } else {
-            qemu_mutex_lock(&reg_lock);
-            reg = reg_update;
-            qemu_mutex_unlock(&reg_lock);
+            qemu_mutex_lock(&c->reg_lock);
+            c->reg = reg_update;
+            qemu_mutex_unlock(&c->reg_lock);
         }
     }
 }
+
+static void sprite_engine_controller_realize(DeviceState *dev, Error **errp)
+{
+    struct control *c = SPRITE_ENGINE_CONTROLLER(dev);
+
+    memory_region_init_io(&c->mmio, OBJECT(c), &sprite_engine_controller_ops, c, "sprite-engine-control", 0x01);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &c->mmio);
+
+    // launch ctrl server
+    qemu_thread_create(&c->server_thread, "se_ctrl_th",
+                       (void *) sprite_engine_controller_svr_main,
+                       (void *) c, QEMU_THREAD_JOINABLE);
+}
+
 
 
 static void sprite_engine_controller_init(Object *obj)
 {
     struct control *c = SPRITE_ENGINE_CONTROLLER(obj);
 
-    qemu_mutex_init(&reg_lock);
-    qemu_thread_create(&c->server_thread, "se_ctrl_th",
-                       (void *) sprite_engine_controller_svr_main,
-                       (void *) &c->port, QEMU_THREAD_JOINABLE);
+    qemu_mutex_init(&c->reg_lock);
 }
 
 static Property sprite_engine_controller_properties[] = {
-    DEFINE_PROP_UINT32("port", struct control, port, 1985),
+    DEFINE_PROP_UINT32("port", struct control, port, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
