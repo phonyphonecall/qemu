@@ -55,6 +55,10 @@
 #define AXIENET_BASEADDR 0x82780000
 #define AXIDMA_BASEADDR 0x84600000
 #define SPRITE_ENGINE_BASEADDR 0xA0000000
+#define SPRITE_ENGINE_CONTROLLER_1 0xB0000000
+#define SPRITE_ENGINE_CONTROLLER_2 0xB0000004
+#define SPRITE_ENGINE_CONTROLLER_3 0xB0000008
+#define SPRITE_ENGINE_CONTROLLER_4 0xB000000C
 
 #define AXIDMA_IRQ1         0
 #define AXIDMA_IRQ0         1
@@ -130,23 +134,28 @@ sprite_engine_init(MachineState *machine)
     qdev_init_nofail(dev);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
-    // /* 2 timers at irq 2 @ 100 Mhz.  */
-    // dev = qdev_create(NULL, "xlnx.xps-timer");
-    // qdev_prop_set_uint32(dev, "one-timer-only", 0);
-    // qdev_prop_set_uint32(dev, "clock-frequency", 100 * 1000000);
-    // qdev_init_nofail(dev);
-    // sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
-    // sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
-
     /* sprite engine init */
     dev = qdev_create(NULL, "sprite-engine");
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SPRITE_ENGINE_BASEADDR);
 
-    int log = open("/tmp/se-init-qemu.log", O_CREAT | O_RDWR, 0777);
-    dprintf(log, "hello from sprite_engine_init!\n");
-    close(log);
-
+    /* sprite engine controllers init */
+    dev = qdev_create(NULL, "sprite-engine-controller");
+    qdev_prop_set_uint32(dev, "port", 1986);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SPRITE_ENGINE_CONTROLLER_1);
+    dev = qdev_create(NULL, "sprite-engine-controller");
+    qdev_prop_set_uint32(dev, "port", 1987);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SPRITE_ENGINE_CONTROLLER_2);
+    dev = qdev_create(NULL, "sprite-engine-controller");
+    qdev_prop_set_uint32(dev, "port", 1988);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SPRITE_ENGINE_CONTROLLER_3);
+    dev = qdev_create(NULL, "sprite-engine-controller");
+    qdev_prop_set_uint32(dev, "port", 1989);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SPRITE_ENGINE_CONTROLLER_4);
 
     /* axi ethernet and dma initialization. */
     qemu_check_nic_model(&nd_table[0], "xlnx.axi-ethernet");

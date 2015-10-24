@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include<arpa/inet.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
