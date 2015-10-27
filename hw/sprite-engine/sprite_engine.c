@@ -54,13 +54,19 @@ struct engineblock
 
     MemoryRegion mmio;
     int sockd;
+    uint32_t oam_vals[(SE_OAM_MAX - SE_OAM_MIN) >> 2];
 };
 
 static uint64_t
 sprite_engine_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    // TODO: write this if you want it
-    return 0;
+    struct engineblock *engine = opaque;
+    // Only support oam reads for now
+    if (addr >= SE_OAM_MIN && addr <= SE_OAM_MAX) {
+        return engine->oam_vals[(addr - SE_OAM_MIN) >> 2];
+    } else {
+        return 0;
+    }
 }
 
 static void
@@ -81,6 +87,8 @@ sprite_engine_write(void *opaque, hwaddr addr,
         uint32_t val = (uint32_t) val64;
         fillUpdateOAM(oamRegIndex, val, &cmd.update_oam);
         debugUpdateOAM(log, &cmd.update_oam);
+        // Save oam val
+        engine->oam_vals[(addr - SE_OAM_MIN) >> 2] = val;
     } else if (addr == SE_PRIORITY_CTL) {
         // Priority write
         dprintf(log, "sprite_engine_write (PRIORITY): at addr %llx  val %llu\n", addr, val64);
