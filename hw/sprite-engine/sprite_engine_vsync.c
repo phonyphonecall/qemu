@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
 #include "qemu/log.h"
@@ -66,13 +68,34 @@ struct timerblock
     qemu_irq irq;
     uint32_t freq_hz;
     struct vsync_timer timer;
+    int sockd;
+    int sync_count;
 };
 
 
 static void timer_update_irq(struct timerblock *t)
 {
+    ssize_t recv_size;
+    struct VSyncCmd {
+        uint16_t magic;
+        uint32_t id;
+        bool is_ack;
+    };
     // Bring IRQ line high
     qemu_set_irq(t->irq, 1);
+
+    struct VSyncCmd cmd = {
+        .magic = 0x1234,
+        .id    = t->sync_count
+    };
+
+    // int log = open("/tmp/se-vsync.log", O_CREAT | O_RDWR | O_APPEND, 0777);
+    // dprintf(log, "vsync: %d\n", t->sync_count);
+    // Notify server of vsync
+    send(t->sockd, &cmd, sizeof(struct VSyncCmd), 0);
+
+    t->sync_count += 1;
+    // close(log);
 }
 
 static void timer_enable(struct vsync_timer *xt)
@@ -110,10 +133,27 @@ static void se_vsync_realize(DeviceState *dev, Error **errp)
 
 static void se_vsync_init(Object *obj)
 {
+    struct sockaddr_in server;
     struct timerblock *t = SE_VSYNC(obj);
 
     // A single IRQ, to connect to cpu IRQ line
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &t->irq);
+
+    int sockd = socket(PF_INET, SOCK_STREAM, 0);
+    if (sockd == -1) {
+        return;
+    }
+
+    memset(&server, 0, sizeof(struct sockaddr_in));
+    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server.sin_family = PF_INET;
+    server.sin_port = htons(1990);
+    int rv = connect(sockd, (struct sockaddr*) &server, sizeof(struct sockaddr));
+    if (rv != 0) {
+        return;
+    }
+    t->sockd = sockd;
+    t->sync_count = 0;
 }
 
 static Property se_vsync_properties[] = {
