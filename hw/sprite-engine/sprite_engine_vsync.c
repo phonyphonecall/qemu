@@ -29,6 +29,8 @@
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 
+#include "hw/sprite-engine/sprite_engine_vsync_counter.h"
+
 #define D(x)
 
 #define R_TCSR     0
@@ -69,13 +71,17 @@ struct timerblock
     uint32_t freq_hz;
     struct vsync_timer timer;
     int sockd;
-    int sync_count;
+    bool vsync_count_init;
 };
 
 
 static void timer_update_irq(struct timerblock *t)
 {
-    ssize_t recv_size;
+    // Uses a lazy initialization scheme
+    if (!t->vsync_count_init) {
+        init_sprite_engine_vsync_count();
+        t->vsync_count_init = true;
+    }
     struct VSyncCmd {
         uint16_t magic;
         uint32_t id;
@@ -84,17 +90,18 @@ static void timer_update_irq(struct timerblock *t)
     // Bring IRQ line high
     qemu_set_irq(t->irq, 1);
 
+    uint32_t sync_count = get_sprite_engine_vsync_count();
     struct VSyncCmd cmd = {
         .magic = 0x1234,
-        .id    = t->sync_count
+        .id    = sync_count
     };
 
     // int log = open("/tmp/se-vsync.log", O_CREAT | O_RDWR | O_APPEND, 0777);
-    // dprintf(log, "vsync: %d\n", t->sync_count);
+    // dprintf(log, "vsync: %d\n", sync_count);
     // Notify server of vsync
     send(t->sockd, &cmd, sizeof(struct VSyncCmd), 0);
 
-    t->sync_count += 1;
+    inc_sprite_engine_vsync_count();
     // close(log);
 }
 
@@ -127,8 +134,8 @@ static void se_vsync_realize(DeviceState *dev, Error **errp)
     xt->ptimer = ptimer_init(xt->bh);
     ptimer_set_freq(xt->ptimer, t->freq_hz);
 
-    // Enable immediately
-    timer_enable(xt);
+    // Enable timer
+    timer_enable(&t->timer);
 }
 
 static void se_vsync_init(Object *obj)
@@ -153,7 +160,7 @@ static void se_vsync_init(Object *obj)
         return;
     }
     t->sockd = sockd;
-    t->sync_count = 0;
+    t->vsync_count_init = false;
 }
 
 static Property se_vsync_properties[] = {

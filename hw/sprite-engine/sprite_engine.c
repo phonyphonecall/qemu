@@ -30,6 +30,7 @@
 #include "qemu/main-loop.h"
 
 #include "hw/sprite-engine/sprite_engine_commands.h"
+#include "hw/sprite-engine/sprite_engine_vsync_counter.h"
 
 #define TYPE_SPRITE_ENGINE "sprite-engine"
 #define SPRITE_ENGINE(obj) \
@@ -83,10 +84,12 @@ sprite_engine_write(void *opaque, hwaddr addr,
     if (addr >= SE_OAM_MIN && addr <= SE_OAM_MAX) {
         // OAM write
         dprintf(log, "sprite_engine_write (OAM): at addr %llx  val %llu\n", addr, val64);
+        uint32_t count = get_sprite_engine_vsync_count();
         int oamRegIndex = addr >> 2;
         uint32_t val = (uint32_t) val64;
         fillUpdateOAM(oamRegIndex, val, &cmd.update_oam);
         debugUpdateOAM(log, &cmd.update_oam);
+        cmd.update_oam.vsync_count = count;
         // Save oam val
         engine->oam_vals[(addr - SE_OAM_MIN) >> 2] = val;
     } else if (addr == SE_PRIORITY_CTL) {

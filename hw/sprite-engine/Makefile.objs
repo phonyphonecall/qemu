@@ -1,4 +1,6 @@
 common-obj-$(CONFIG_XILINX) += sprite_engine.o
 common-obj-$(CONFIG_XILINX) += sprite_engine_vsync.o
 common-obj-$(CONFIG_XILINX) += sprite_engine_controller.o
+common-obj-$(CONFIG_XILINX) += sprite_engine_vsync_counter.o
+
 

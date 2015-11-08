@@ -10,6 +10,7 @@ enum SpriteEngineCommandType {
 
 struct SECommandUpdateOAM {
   enum SpriteEngineCommandType type;
+  uint32_t vsync_count;
   uint8_t oam_index;
   bool enable;
   uint8_t palette;
