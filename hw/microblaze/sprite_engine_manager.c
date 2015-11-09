@@ -50,8 +50,7 @@
 #define FLASH_BASEADDR 0x86000000
 #define INTC_BASEADDR 0x81800000
 #define TIMER_BASEADDR 0x83c00000
-#define UART16550_BASEADDR 0x83e00000
-// #define UARTLITE_BASEADDR 0x84000000
+#define UARTLITE_BASEADDR 0x84000000
 #define SPRITE_ENGINE_BASEADDR 0xA0000000
 #define SPRITE_ENGINE_CONTROLLER_1 0xB0000000
 #define SPRITE_ENGINE_CONTROLLER_2 0xB0000004
@@ -62,7 +61,7 @@
 #define AXIDMA_IRQ0         1
 #define TIMER_IRQ           2
 #define AXIENET_IRQ         3
-#define UART16550_IRQ       5
+#define UARTLITE_IRQ        4
 
 static void
 sprite_engine_init(MachineState *machine)
@@ -119,9 +118,9 @@ sprite_engine_init(MachineState *machine)
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    serial_mm_init(address_space_mem, UART16550_BASEADDR + 0x1000, 2,
-                   irq[UART16550_IRQ], 115200, serial_hds[0],
-                   DEVICE_LITTLE_ENDIAN);
+    // create a uartlite
+    sysbus_create_simple("xlnx.xps-uartlite", UARTLITE_BASEADDR,
+                         irq[UARTLITE_IRQ]);
 
     // Create the vsync timer, and connect it to TIMER_IRQ
     dev = qdev_create(NULL, "sprite-engine.vsync");
