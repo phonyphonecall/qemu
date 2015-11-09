@@ -46,14 +46,12 @@
 
 #define NUM_SPI_FLASHES 4
 
-#define SPI_BASEADDR 0x40a00000
 #define MEMORY_BASEADDR 0x50000000
 #define FLASH_BASEADDR 0x86000000
 #define INTC_BASEADDR 0x81800000
 #define TIMER_BASEADDR 0x83c00000
 #define UART16550_BASEADDR 0x83e00000
-#define AXIENET_BASEADDR 0x82780000
-#define AXIDMA_BASEADDR 0x84600000
+// #define UARTLITE_BASEADDR 0x84000000
 #define SPRITE_ENGINE_BASEADDR 0xA0000000
 #define SPRITE_ENGINE_CONTROLLER_1 0xB0000000
 #define SPRITE_ENGINE_CONTROLLER_2 0xB0000004
@@ -64,7 +62,6 @@
 #define AXIDMA_IRQ0         1
 #define TIMER_IRQ           2
 #define AXIENET_IRQ         3
-#define SPI_IRQ             4
 #define UART16550_IRQ       5
 
 static void
@@ -72,10 +69,8 @@ sprite_engine_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
     MemoryRegion *address_space_mem = get_system_memory();
-    DeviceState *dev, *dma, *eth0;
-    Object *ds, *cs;
+    DeviceState *dev;
     MicroBlazeCPU *cpu;
-    SysBusDevice *busdev;
     DriveInfo *dinfo;
     int i;
     MemoryRegion *phys_lmb_bram = g_new(MemoryRegion, 1);
@@ -156,67 +151,6 @@ sprite_engine_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "port", 1989);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SPRITE_ENGINE_CONTROLLER_4);
-
-    /* axi ethernet and dma initialization. */
-    qemu_check_nic_model(&nd_table[0], "xlnx.axi-ethernet");
-    eth0 = qdev_create(NULL, "xlnx.axi-ethernet");
-    dma = qdev_create(NULL, "xlnx.axi-dma");
-
-    /* FIXME: attach to the sysbus instead */
-    object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth0),
-                              NULL);
-    object_property_add_child(qdev_get_machine(), "xilinx-dma", OBJECT(dma),
-                              NULL);
-
-    ds = object_property_get_link(OBJECT(dma),
-                                  "axistream-connected-target", NULL);
-    cs = object_property_get_link(OBJECT(dma),
-                                  "axistream-control-connected-target", NULL);
-    qdev_set_nic_properties(eth0, &nd_table[0]);
-    qdev_prop_set_uint32(eth0, "rxmem", 0x1000);
-    qdev_prop_set_uint32(eth0, "txmem", 0x1000);
-    object_property_set_link(OBJECT(eth0), OBJECT(ds),
-                             "axistream-connected", &error_abort);
-    object_property_set_link(OBJECT(eth0), OBJECT(cs),
-                             "axistream-control-connected", &error_abort);
-    qdev_init_nofail(eth0);
-    sysbus_mmio_map(SYS_BUS_DEVICE(eth0), 0, AXIENET_BASEADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(eth0), 0, irq[AXIENET_IRQ]);
-
-    ds = object_property_get_link(OBJECT(eth0),
-                                  "axistream-connected-target", NULL);
-    cs = object_property_get_link(OBJECT(eth0),
-                                  "axistream-control-connected-target", NULL);
-    qdev_prop_set_uint32(dma, "freqhz", 100 * 1000000);
-    object_property_set_link(OBJECT(dma), OBJECT(ds),
-                             "axistream-connected", &error_abort);
-    object_property_set_link(OBJECT(dma), OBJECT(cs),
-                             "axistream-control-connected", &error_abort);
-    qdev_init_nofail(dma);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, AXIDMA_BASEADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dma), 0, irq[AXIDMA_IRQ0]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dma), 1, irq[AXIDMA_IRQ1]);
-
-    {
-        SSIBus *spi;
-
-        dev = qdev_create(NULL, "xlnx.xps-spi");
-        qdev_prop_set_uint8(dev, "num-ss-bits", NUM_SPI_FLASHES);
-        qdev_init_nofail(dev);
-        busdev = SYS_BUS_DEVICE(dev);
-        sysbus_mmio_map(busdev, 0, SPI_BASEADDR);
-        sysbus_connect_irq(busdev, 0, irq[SPI_IRQ]);
-
-        spi = (SSIBus *)qdev_get_child_bus(dev, "spi");
-
-        for (i = 0; i < NUM_SPI_FLASHES; i++) {
-            qemu_irq cs_line;
-
-            dev = ssi_create_slave(spi, "n25q128");
-            cs_line = qdev_get_gpio_in_named(dev, SSI_GPIO_CS, 0);
-            sysbus_connect_irq(busdev, i+1, cs_line);
-        }
-    }
 
     /* setup PVR to match kernel settings */
     cpu->env.pvr.regs[4] = 0xc56b8000;
