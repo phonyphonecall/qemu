@@ -56,7 +56,7 @@ void fillUpdateOAM(uint8_t oam_index, uint32_t val, struct SECommandUpdateOAM *c
     cmd->flip_x = ((val & 0x00200000) != 0) ? true : false;
     cmd->flip_y = ((val & 0x00100000) != 0) ? true : false;
     cmd->x_offset = (uint16_t) ((val & 0x000FFC00) >> 10);
-    cmd->y_offset = (uint16_t) (val & 0x000001FF);
+    cmd->y_offset = (uint16_t) (val & 0x000003FF);
     // other fields 0'd by memset
 }
 
