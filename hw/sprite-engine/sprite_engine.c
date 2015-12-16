@@ -109,9 +109,9 @@ sprite_engine_write(void *opaque, hwaddr addr,
 
         // We skip writing if this is the oam part,
         //  We will flush once the object part has been written too;
-        skip_write = (addr % 8 == 0);
+        skip_write = (addr % 8 != 0);
         if (!skip_write) {
-            uint64_t val = (((uint64_t) engine->inst_oam_vals[(addr - SE_INST_MIN - 0x4) >> 2]) << 32) | ((uint32_t) val64);
+            uint64_t val = (((uint64_t) engine->inst_oam_vals[(addr - SE_INST_MIN + 0x4) >> 2])) | (((uint64_t) val64 << 32));
             fillUpdateInstOAM(oamRegIndex, val, &cmd.update_oam);
             debugUpdateOAM(log, &cmd.update_oam);
         }
