@@ -37,16 +37,16 @@
     OBJECT_CHECK(struct engineblock, (obj), TYPE_SPRITE_ENGINE)
 
 // MIN and MAX are defined inclusive
-#define SE_REGION_MIN   0x00000000
+#define SE_REGION_MIN   (0x00000000)
 #define SE_OAM_MIN      (SE_REGION_MIN)
-#define SE_OAM_MAX      ((SE_REGION_MIN) + 0x1EC)
-#define SE_PRIORITY_CTL ((SE_REGION_MIN) + 0x1FC)
-#define SE_INST_MIN     ((SE_REGION_MIN) + 0x200)
-#define SE_INST_MAX     ((SE_REGION_MIN) + 0x3FC)
-#define SE_CRAM_MIN     ((SE_REGION_MIN) + 0x400)
-#define SE_CRAM_MAX     ((SE_REGION_MIN) + 0x4FC)
-#define SE_VRAM_MIN     ((SE_REGION_MIN) + 0x800)
-#define SE_VRAM_MAX     ((SE_REGION_MIN) + 0x803)
+#define SE_OAM_MAX      (SE_REGION_MIN + 0x1EC)
+#define SE_PRIORITY_CTL (SE_REGION_MIN + 0x1FC)
+#define SE_INST_MIN     (SE_REGION_MIN + 0x200)
+#define SE_INST_MAX     (SE_REGION_MIN + 0x3FC)
+#define SE_CRAM_MIN     (SE_REGION_MIN + 0x400)
+#define SE_CRAM_MAX     (SE_REGION_MIN + 0x4FC)
+#define SE_VRAM_MIN     (SE_REGION_MIN + 0x800)
+#define SE_VRAM_MAX     (SE_REGION_MIN + 0x803)
 #define SE_REGION_MAX   SE_VRAM_MAX
 
 struct engineblock
@@ -56,6 +56,7 @@ struct engineblock
     MemoryRegion mmio;
     int sockd;
     uint32_t oam_vals[(SE_OAM_MAX - SE_OAM_MIN) >> 2];
+    uint32_t inst_oam_vals[(SE_INST_MAX - SE_INST_MIN) >> 2];
 };
 
 static uint64_t
@@ -65,6 +66,8 @@ sprite_engine_read(void *opaque, hwaddr addr, unsigned int size)
     // Only support oam reads for now
     if (addr >= SE_OAM_MIN && addr <= SE_OAM_MAX) {
         return engine->oam_vals[(addr - SE_OAM_MIN) >> 2];
+    } else if (addr >= SE_INST_MIN && addr <= SE_INST_MAX) {
+        return engine->inst_oam_vals[(addr - SE_INST_MIN) >> 2];
     } else {
         return 0;
     }
@@ -74,6 +77,7 @@ static void
 sprite_engine_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
+    bool skip_write = false;
     union SECommand cmd;
     struct engineblock *engine = opaque;
 
@@ -102,8 +106,17 @@ sprite_engine_write(void *opaque, hwaddr addr,
         // Instance write
         dprintf(log, "sprite_engine_write (INSTANCE): at addr %llx  val %llu\n", addr, val64);
         int oamRegIndex = addr >> 2;
-        fillUpdateInstOAM(oamRegIndex, val64, &cmd.update_oam);
-        debugUpdateOAM(log, &cmd.update_oam);
+
+        // We skip writing if this is the oam part,
+        //  We will flush once the object part has been written too;
+        skip_write = (addr % 8 == 0);
+        if (!skip_write) {
+            uint64_t val = (((uint64_t) engine->inst_oam_vals[(addr - SE_INST_MIN - 0x4) >> 2]) << 32) | ((uint32_t) val64);
+            fillUpdateInstOAM(oamRegIndex, val, &cmd.update_oam);
+            debugUpdateOAM(log, &cmd.update_oam);
+        }
+        // Save inst val
+        engine->inst_oam_vals[(addr - SE_INST_MIN) >> 2] = (uint32_t) val64;
     } else if (addr >= SE_CRAM_MIN && addr <= SE_CRAM_MAX) {
         // CRAM write
         dprintf(log, "sprite_engine_write (CRAM): at addr %llx  val %llu\n", addr, val64);
@@ -124,10 +137,12 @@ sprite_engine_write(void *opaque, hwaddr addr,
         close(log);
         return;
     }
-    size_t cmd_size = sizeof(union SECommand);
-    ssize_t rv = send(engine->sockd, &cmd, cmd_size, 0);
-    if (rv != cmd_size) {
-        dprintf(log, "sprite_engine_write send failed expected: %zd  observed: %zd\n", cmd_size, rv);
+    if (!skip_write) {
+        size_t cmd_size = sizeof(union SECommand);
+        ssize_t rv = send(engine->sockd, &cmd, cmd_size, 0);
+        if (rv != cmd_size) {
+            dprintf(log, "sprite_engine_write send failed expected: %zd  observed: %zd\n", cmd_size, rv);
+        }
     }
     close(log);
 }
