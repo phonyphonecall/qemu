@@ -70,7 +70,7 @@ void fillUpdateInstOAM(uint8_t oam_index, uint64_t val, struct SECommandUpdateOA
     cmd->flip_x = ((val & 0x0020000000000000) != 0) ? true : false;
     cmd->flip_y = ((val & 0x0010000000000000) != 0) ? true : false;
     cmd->x_offset = (uint16_t) ((val & 0x0007FE0000000000) >> 42);
-    cmd->y_offset = (uint16_t) ((val & 0x000001FF00000000) >> 32);
+    cmd->y_offset = (uint16_t) ((val & 0x000003FF00000000) >> 32);
     cmd->sprite_size = (uint8_t) ((val & 0x0000000000000060)) >> 5;
     cmd->sprite = (uint8_t) ((val & 0x000000000000001E)) >> 1;
     cmd->transpose = ((val & 0x0000000000000001) != 0) ? true : false;
